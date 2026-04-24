@@ -142,7 +142,7 @@ const getMyDonations = async (req, res, next) => {
 
         const totalOxygen = donations.reduce((sum, donation) => {
             return sum + donation.items.reduce((s, item) => {
-                return s + (item.tree.oxygenProduced * item.quantity);
+                return s + ((item.tree?.oxygenProduced || 0) * item.quantity);
             }, 0);
         }, 0);
 
@@ -163,6 +163,99 @@ const getMyDonations = async (req, res, next) => {
         next(error);
     }
 };
-module.exports = { postDonation,verifyPayment,getMyDonations };
+
+
+ const getUserDashboard = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // 1. My donation history (only successful)
+    const donations = await Donation.find({ user: userId, paymentStatus: 'success' })
+      .populate('items.tree', 'name image')
+      .sort({ createdAt: -1 });
+
+    // 2. My totals
+    const totals = await Donation.aggregate([
+      { $match: { user: new mongoose.Types.ObjectId(userId), paymentStatus: 'success' } },
+      {
+        $group: {
+          _id: null,
+          totalTrees: { $sum: '$totalTrees' },
+          totalAmount: { $sum: '$totalAmount' },
+        },
+      },
+    ]);
+
+    const { totalTrees = 0, totalAmount = 0 } = totals[0] || {};
+
+    // 3. My rank on leaderboard (by trees)
+    const leaderboard = await Donation.aggregate([
+      { $match: { paymentStatus: 'success' } },
+      {
+        $group: {
+          _id: '$user',
+          totalTrees: { $sum: '$totalTrees' },
+        },
+      },
+      { $sort: { totalTrees: -1 } },
+    ]);
+
+    const myRank = leaderboard.findIndex(
+      (entry) => entry._id.toString() === userId.toString()
+    ) + 1;
+
+    res.status(200).json({
+      success: true,
+      donations,
+      stats: { totalTrees, totalAmount },
+      myRank: myRank || null,
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ message: 'Failed to load dashboard' });
+  }
+};
+
+const getLeaderboard = async (req, res) => {
+  try {
+    const leaderboard = await Donation.aggregate([
+      { $match: { paymentStatus: 'success' } },
+      {
+        $group: {
+          _id: '$user',
+          totalTrees: { $sum: '$totalTrees' },
+          totalAmount: { $sum: '$totalAmount' },
+          donationCount: { $sum: 1 },
+        },
+      },
+      { $sort: { totalTrees: -1 } },
+      { $limit: 10 }, // top 10
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          totalTrees: 1,
+          totalAmount: 1,
+          donationCount: 1,
+          'user.name': 1,
+          'user.avatar': 1, // remove if you don't have avatar
+        },
+      },
+    ]);
+
+    res.status(200).json({ success: true, leaderboard });
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    res.status(500).json({ message: 'Failed to load leaderboard' });
+  }
+};
+module.exports = { postDonation,verifyPayment,getMyDonations,getUserDashboard,getLeaderboard };
 
 
