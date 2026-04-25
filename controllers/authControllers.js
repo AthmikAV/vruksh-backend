@@ -4,9 +4,8 @@ const { userRegisterValidationSchema,userLoginValidationSchema } = require('../v
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const registerUser = async (req, res,next) => {
+const registerUser = async (req, res, next) => {
     try {
-        
         const result = userRegisterValidationSchema.safeParse(req.body);
 
         if (!result.success) {
@@ -18,25 +17,33 @@ const registerUser = async (req, res,next) => {
 
         const { name, email, password, phone, profilePhoto } = result.data;
 
-    
-
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(409).json({
-                success:false,
+                success: false,
                 message: "User already exists"
             })
         };
-    
+
         const cryptedPassword = await bcrypt.hash(password, parseInt(process.env.SALT));
-
         const user = new User({ name, email, password: cryptedPassword, phone, profilePhoto });
-
         await user.save();
+
+        // ← set cookie so refresh works
+        const payload = { id: user._id, email: user.email, role: user.role };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
         const safeUser = await User.findById(user._id);
         res.status(201).json({
-            success:true,
-            message: "User created", user: safeUser
+            success: true,
+            message: "User created",
+            user: safeUser
         });
     } catch (error) {
         next(error);
