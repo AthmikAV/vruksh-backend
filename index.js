@@ -6,7 +6,7 @@ require('dotenv').config() // ← move to top
 const app = express();
 
 app.use(cors({
-  origin: '*', // ← change to * for now, fix after deploy
+  origin: 'https://vruksh-frontend-l4dk.vercel.app',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
