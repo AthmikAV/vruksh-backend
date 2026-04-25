@@ -1,17 +1,19 @@
 const express = require('express');
 const cors = require('cors'); 
 const cookieParser = require('cookie-parser');
+require('dotenv').config() // ← move to top
 
 const app = express();
-app.use(cors({
-  origin: 'http://localhost:5173',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-}));
-require('dotenv').config()
-app.use(cookieParser());
 
+app.use(cors({
+  origin: '*', // ← change to * for now, fix after deploy
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+}));
+
+app.use(cookieParser());
 app.use(express.json());
+
 const connectDb = require('./config/db.js');
 const PORT = process.env.PORT || 8000;
 
@@ -23,11 +25,13 @@ const errorHandler = require('./middlewares/errorHandler.js');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
-app.use('/trees',treeRoutes)
-app.use('/donations',donationRoutes)
-
+app.use('/trees', treeRoutes);
+app.use('/donations', donationRoutes);
 app.use(errorHandler);
-app.listen(PORT,async () => {
-    await connectDb();
-    console.log(`Server is running on port : ${PORT}`)
+
+// ← connect DB before listening
+connectDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port: ${PORT}`)
+  });
 });
