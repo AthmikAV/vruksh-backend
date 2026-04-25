@@ -72,14 +72,19 @@ const loginUser = async (req, res,next) => {
         res.cookie('token', token, {
             httpOnly: true,   
             secure: process.env.NODE_ENV === 'production',    
-            sameSite: 'Strict',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 
         })
         return res.status(200).json({
-            success:true,
-            message: "Login Successfull",
-            role:user.role
-        });
+  success: true,
+  message: "Login Successfull",
+  user: {                   // ← add this
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  }
+});
 
     } catch (error) {
         next(error);
@@ -101,4 +106,8 @@ const logoutUser = async (req, res,next) => {
         next(error);
     }
 }
-module.exports = { registerUser, loginUser, logoutUser };
+
+const getMe = async (req, res) => {
+  res.status(200).json({ success: true, user: req.user });
+};
+module.exports = { registerUser, loginUser, logoutUser ,getMe};
