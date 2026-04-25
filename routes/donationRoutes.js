@@ -7,7 +7,7 @@ const { postDonation, verifyPayment ,getMyDonations,getUserDashboard,getLeaderbo
 router.post('/create-order', isAuthenticated, postDonation);
 router.post('/verify-order', isAuthenticated, verifyPayment);
 router.get('/my', isAuthenticated, getMyDonations)
-router.get('/dashboard', isAuthenticated, getUserDashboard);
+router.get('/dashboard', getUserDashboard);
 router.get('/leaderboard', getLeaderboard);
 
 module.exports = router;
